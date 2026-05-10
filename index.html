@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>災情分析地圖系統</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 0;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 2px solid #e0e0e0;
+            overflow-y: auto;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .upload-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 15px;
+            background: #f0f0f0;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #e8e8ff;
+            border-color: #764ba2;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #2e7d32;
+            word-break: break-all;
+        }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .analyze-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .results-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .summary-item {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-item.high {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .summary-item.medium {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .summary-item.low {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .summary-item .number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .summary-item .label {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .disaster-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .disaster-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .disaster-item .icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .disaster-item .type {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .disaster-item .severity {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+
+        .disaster-item .severity.high {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .disaster-item .severity.medium {
+            background: #ffe0b2;
+            color: #ef6c00;
+        }
+
+        .disaster-item .severity.low {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 自定義 Leaflet 彈出窗口樣式 */
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+        }
+
+        .popup-content {
+            padding: 10px;
+        }
+
+        .popup-content .icon {
+            font-size: 2em;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .popup-content .type {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .popup-content .info {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛰️ 災情分析地圖系統</h1>
+            <p>上傳衛星圖片，智能分析災情分布</p>
+        </div>
+
+        <div class="content">
+            <div class="sidebar">
+                <div class="upload-section">
+                    <h3>📤 上傳衛星圖片</h3>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept="image/*">
+                        <label for="fileInput" class="file-input-label">
+                            <div>📁 點擊選擇圖片</div>
+                            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                支援 JPG, PNG 格式
+                            </div>
+                        </label>
+                    </div>
+                    <div id="fileName" class="file-name" style="display: none;"></div>
+                    <button id="analyzeBtn" class="analyze-btn" disabled>
+                        🔍 分析災情
+                    </button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>分析中，請稍候...</div>
+                </div>
+
+                <div class="results-section" id="results" style="display: none;">
+                    <h3>📊 分析結果</h3>
+                    <div class="summary" id="summary"></div>
+                    <div class="disaster-list" id="disasterList"></div>
+                </div>
+            </div>
+
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 初始化地圖（台灣中部）
+        const map = L.map('map').setView([24.0, 121.0], 10);
+
+        // 添加 OpenStreetMap 圖層
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // 存儲災情標記
+        let disasterMarkers = [];
+
+        // 文件選擇處理
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileName.textContent = `✅ 已選擇: ${file.name}`;
+                fileName.style.display = 'block';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // 分析按鈕處理
+        analyzeBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // 顯示載入狀態
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').style.display = 'none';
+            analyzeBtn.disabled = true;
+
+            // 清除舊的標記
+            disasterMarkers.forEach(marker => map.removeLayer(marker));
+            disasterMarkers = [];
+
+            // 準備表單數據
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // 發送到後端分析
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 顯示結果
+                    displayResults(data);
+                    // 在地圖上顯示災情點
+                    displayDisastersOnMap(data.disasters);
+                } else {
+                    alert('分析失敗，請重試');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('發生錯誤: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // 顯示分析結果
+        function displayResults(data) {
+            const resultsSection = document.getElementById('results');
+            const summary = document.getElementById('summary');
+            const disasterList = document.getElementById('disasterList');
+
+            // 顯示統計摘要
+            summary.innerHTML = `
+                <div class="summary-item high">
+                    <div class="number">${data.summary.high_severity}</div>
+                    <div class="label">高風險</div>
+                </div>
+                <div class="summary-item medium">
+                    <div class="number">${data.summary.medium_severity}</div>
+                    <div class="label">中風險</div>
+                </div>
+                <div class="summary-item low">
+                    <div class="number">${data.summary.low_severity}</div>
+                    <div class="label">低風險</div>
+                </div>
+            `;
+
+            // 顯示災情列表
+            disasterList.innerHTML = data.disasters.map(d => `
+                <div class="disaster-item">
+                    <span class="icon">${d.icon}</span>
+                    <span class="type">${d.type}</span>
+                    <span class="severity ${d.severity === '高' ? 'high' : d.severity === '中' ? 'medium' : 'low'}">
+                        ${d.severity}
+                    </span>
+                    <div style="margin-top: 5px; font-size: 0.9em; color: #666;">
+                        信心度: ${(d.confidence * 100).toFixed(0)}%
+                    </div>
+                </div>
+            `).join('');
+
+            resultsSection.style.display = 'block';
+        }
+
+        // 在地圖上顯示災情點
+        function displayDisastersOnMap(disasters) {
+            // 定義不同嚴重程度的顏色
+            const severityColors = {
+                '高': '#e53935',
+                '中': '#fb8c00',
+                '低': '#43a047'
+            };
+
+            disasters.forEach(disaster => {
+                // 創建自定義圖標
+                const icon = L.divIcon({
+                    html: `<div style="
+                        background: ${severityColors[disaster.severity]};
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 50%;
+                        border: 3px solid white;
+                        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 16px;
+                    ">${disaster.icon}</div>`,
+                    className: 'custom-disaster-marker',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                // 創建標記
+                const marker = L.marker([disaster.lat, disaster.lon], { icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="popup-content">
+                            <div class="icon">${disaster.icon}</div>
+                            <div class="type">${disaster.type}</div>
+                            <div class="info">嚴重程度: <strong>${disaster.severity}</strong></div>
+                            <div class="info">信心度: <strong>${(disaster.confidence * 100).toFixed(0)}%</strong></div>
+                            <div class="info">位置: ${disaster.lat.toFixed(4)}, ${disaster.lon.toFixed(4)}</div>
+                            <div class="info" style="margin-top: 10px; color: #666;">
+                                ${disaster.description}
+                            </div>
+                        </div>
+                    `);
+
+                disasterMarkers.push(marker);
+            });
+
+            // 調整地圖視野以包含所有標記
+            if (disasters.length > 0) {
+                const bounds = L.latLngBounds(disasters.map(d => [d.lat, d.lon]));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        // 添加圖例
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'info legend');
+            div.innerHTML = `
+                <div style="background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                    <h4 style="margin: 0 0 10px 0; color: #667eea;">災情嚴重程度</h4>
+                    <div style="margin: 5px 0;">
+                        <span style="display: inline-block; width: 20px; height: 20px; background: #e53935; border-radius: 50%; margin-right: 8px;"></span>
+                        高風險
+                    </div>
+                    <div style="margin: 5px 0;">
+                        <span style="display: inline-block; width: 20px; height: 20px; background: #fb8c00; border-radius: 50%; margin-right: 8px;"></span>
+                        中風險
+                    </div>
+                    <div style="margin: 5px 0;">
+                        <span style="display: inline-block; width: 20px; height: 20px; background: #43a047; border-radius: 50%; margin-right: 8px;"></span>
+                        低風險
+                    </div>
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+    </script>
+</body>
+</html>

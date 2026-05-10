@@ -1,0 +1,19 @@
+# Render 部署配置文件
+# 這個文件會告訴 Render 如何部署你的應用
+
+services:
+  # Web 服務配置
+  - type: web
+    name: disaster-analysis-map
+    env: python
+    region: singapore  # 選擇離台灣最近的區域
+    plan: free  # 免費方案
+    branch: main  # 部署的分支
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        generateValue: true
+    healthCheckPath: /api/health
