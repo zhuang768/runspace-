@@ -1,40 +1,21 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uvicorn
-import random
-from PIL import Image
-import io
-from typing import List, Dict
+import requests
 
-app = FastAPI(
-    title="災情分析 AI Backend",
-    description="接收衛星圖片，使用 AI 分析災情",
-    version="1.0.0"
-)
+HF_TOKEN = "你的 huggingface token"
 
-# CORS 設定
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 提供靜態文件服務（前端）
-app.mount("/static", StaticFiles(directory="."), name="static")
-
-
-def simulate_ai_analysis(width: int, height: int) -> List[Dict]:
-    """模擬 AI 災情檢測"""
-    disaster_types = [
-        {"type": "火災", "severity": "高", "icon": "🔥", "color": "#e53935"},
-        {"type": "水災", "severity": "中", "icon": "🌊", "color": "#1e88e5"},
-        {"type": "建築損毀", "severity": "高", "icon": "🏚️", "color": "#d32f2f"},
-        {"type": "道路阻斷", "severity": "中", "icon": "🚧", "color": "#f57c00"},
-        {"type": "土石流", "severity": "高", "icon": "⛰️", "color": "#6d4c41"},
+def call_ai_model(image_bytes):
+    API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base"
+    
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}"
+    }
+    
+    response = requests.post(
+        API_URL,
+        headers=headers,
+        data=image_bytes
+    )
+    
+    return response.json()        {"type": "土石流", "severity": "高", "icon": "⛰️", "color": "#6d4c41"},
         {"type": "植被破壞", "severity": "低", "icon": "🌳", "color": "#689f38"},
     ]
     
